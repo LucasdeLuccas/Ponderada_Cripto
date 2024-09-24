@@ -11,6 +11,7 @@ import {
   Paper,
 } from '@mui/material';
 import axios from 'axios';
+import GraphDialog from '../components/GraphDialog'; // Certifique-se de que o caminho está correto
 
 const assets = ['Bitcoin', 'Ethereum', 'BNB', 'Solana', 'Dogecoin'];
 
@@ -18,18 +19,29 @@ function HomePage() {
   const [asset, setAsset] = useState('Bitcoin');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showGraph, setShowGraph] = useState(false);
+  const [error, setError] = useState(''); // Definição do estado 'error'
 
   const handleSubmit = async () => {
+    if (!asset) {
+      setError('Por favor, selecione um criptoativo.');
+      return;
+    }
+  
     setLoading(true);
+    setError('');
     try {
-      const today = new Date().toISOString().split('T')[0]; // Data atual no formato 'YYYY-MM-DD'
-      const response = await axios.get('http://localhost:5000/predict', {
-        params: { asset, date: today },
+      const response = await axios.get('http://backend:5001/predict', { // Alterado para 'http://backend:5000/predict'
+        params: { asset },
       });
       setResult(response.data);
     } catch (error) {
       console.error(error);
-      alert('Erro ao obter os dados. Verifique o ativo selecionado.');
+      if (error.response && error.response.data && error.response.data.error) {
+        setError(`Erro: ${error.response.data.error}`);
+      } else {
+        setError('Erro ao obter os dados. Por favor, tente novamente mais tarde.');
+      }
     }
     setLoading(false);
   };
@@ -39,10 +51,10 @@ function HomePage() {
       {/* Seção de Informação */}
       <Box textAlign="center" mb={4}>
         <Typography variant="h3" gutterBottom>
-          Bem-vindo ao CryptoDeLuccas
+          Bem-vindo ao CryptoPredictor
         </Typography>
         <Typography variant="h6" color="textSecondary">
-          Seu sistema de previsão pra criptoativos.
+          Seu sistema de previsão para investimentos em criptoativos.
         </Typography>
       </Box>
 
@@ -57,7 +69,7 @@ function HomePage() {
 
       {/* Formulário de Consulta */}
       <Paper elevation={3} sx={{ p: 4 }}>
-        <Box component="form" noValidate>
+        <Box display="flex" flexDirection="column" alignItems="center">
           <FormControl fullWidth margin="normal">
             <InputLabel id="asset-label">Criptoativo</InputLabel>
             <Select
@@ -83,6 +95,12 @@ function HomePage() {
           >
             {loading ? 'Consultando...' : 'Consultar'}
           </Button>
+          {/* Exibir Mensagem de Erro */}
+          {error && (
+            <Typography variant="body1" color="error" mt={2}>
+              {error}
+            </Typography>
+          )}
         </Box>
       </Paper>
 
@@ -101,19 +119,26 @@ function HomePage() {
               Sinal: {result.signal}
             </Typography>
             <Typography variant="body1" gutterBottom>
+              <strong>Preço Atual:</strong> ${result.current_price.toFixed(2)}
+            </Typography>
+            <Typography variant="body1" gutterBottom>
               <strong>Preço Previsto:</strong> ${result.prediction.toFixed(2)}
             </Typography>
             {/* Botão para ver mais detalhes ou gráficos */}
             <Button
               variant="outlined"
               color="primary"
-              onClick={() => {
-                // Lógica para mostrar os gráficos
-              }}
+              onClick={() => setShowGraph(true)}
+              sx={{ mt: 2 }}
             >
               Ver Gráfico
             </Button>
           </Paper>
+          <GraphDialog
+            open={showGraph}
+            onClose={() => setShowGraph(false)}
+            data={result.graphData}
+          />
         </Box>
       )}
     </Container>

@@ -4,6 +4,7 @@ import yfinance as yf
 from sklearn.linear_model import LinearRegression
 import joblib
 from utils import calculate_RSI, calculate_MACD
+from datetime import datetime, timedelta
 
 # Definir os símbolos dos criptoativos
 symbols = {
@@ -24,8 +25,14 @@ if not os.path.exists('models'):
 for asset_name, ticker in symbols.items():
     print(f'Treinando modelo para {asset_name}...')
     
-    # Baixar dados históricos (últimos 500 dias para ter mais dados)
-    data = yf.download(tickers=ticker, period='500d')
+    # Calcular datas de início e fim
+    end_date = datetime.today()
+    start_date = end_date - timedelta(days=500)
+    start_str = start_date.strftime('%Y-%m-%d')
+    end_str = end_date.strftime('%Y-%m-%d')
+    
+    # Baixar dados históricos (últimos 500 dias)
+    data = yf.download(tickers=ticker, start=start_str, end=end_str)
     
     if data.empty:
         print(f'Não foi possível baixar dados para {asset_name}.')
