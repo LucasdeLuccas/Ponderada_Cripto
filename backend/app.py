@@ -8,10 +8,8 @@ from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  
+CORS(app, resources={r"/*": {"origins": "http://frontend"}}) 
 
-# Obter o caminho absoluto do diretório atual
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 symbols = {
     'BNB': 'BNB-USD',
@@ -21,62 +19,42 @@ symbols = {
     'Dogecoin': 'DOGE-USD'
 }
 
-# Carregar modelos com caminhos absolutos
+# Carregar modelos
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 models = {}
-try:
-    models['Bitcoin'] = joblib.load(os.path.join(BASE_DIR, 'models/Bitcoin_model.pkl'))
-    models['Ethereum'] = joblib.load(os.path.join(BASE_DIR, 'models/Ethereum_model.pkl'))
-    models['BNB'] = joblib.load(os.path.join(BASE_DIR, 'models/BNB_model.pkl'))
-    models['Solana'] = joblib.load(os.path.join(BASE_DIR, 'models/Solana_model.pkl'))
-    models['Dogecoin'] = joblib.load(os.path.join(BASE_DIR, 'models/Dogecoin_model.pkl'))
-    print("Modelos carregados com sucesso.")
-except FileNotFoundError as e:
-    print(f"Erro ao carregar modelo: {e}")
-    exit(1)
+for asset in symbols.keys():
+    model_path = os.path.join(BASE_DIR, 'models', f'{asset}_model.pkl')
+    try:
+        models[asset] = joblib.load(model_path)
+    except FileNotFoundError:
+        print(f"Modelo para {asset} não encontrado em {model_path}.")
 
 # Definir as features utilizadas
 features = ['Close', 'MA10', 'MA50', 'MA100', 'Daily Return', 'Volatility', 'RSI', 'MACD']
 
-@app.route('/', methods=['GET'])
-def home():
-    return jsonify({'message': 'CryptoPredictor Backend está funcionando! Use o endpoint /predict.'}), 200
-
 @app.route('/predict', methods=['GET'])
 def predict():
-    asset = request.args.get('asset')  # Exemplo: 'Bitcoin'
-    date = request.args.get('date')    # Data no formato 'YYYY-MM-DD' (opcional)
+    asset = request.args.get('asset')
+    date_str = request.args.get('date')  # Recebe a data no formato 'YYYY-MM-DD'
 
-    print(f"Recebido asset: {asset}, date: {date}")
+    if not asset or asset not in models:
+        return jsonify({'error': 'Asset não suportado ou não fornecido.'}), 400
 
-    if asset not in models:
-        print(f"Asset não suportado: {asset}")
-        return jsonify({'error': 'Asset not supported'}), 400
+    # Validar e converter a data
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Data inválida ou não fornecida. Use o formato YYYY-MM-DD.'}), 400
 
-    # Usar a data atual se nenhuma data for fornecida
-    if not date:
-        date = datetime.utcnow().strftime('%Y-%m-%d')
-        print(f"Data não fornecida. Usando data atual: {date}")
+    # Definir o período para baixar dados (500 dias antes da data selecionada)
+    start_date = date - timedelta(days=500)
+    end_date = date
 
-    # Calcular datas de início e fim
-    end_date = datetime.today()
-    start_date = end_date - timedelta(days=500)
-    start_str = start_date.strftime('%Y-%m-%d')
-    end_str = end_date.strftime('%Y-%m-%d')
-    print(f"Baixando dados para {asset} de {start_str} até {end_str}")
-
-    # Obter dados históricos (últimos 500 dias)
-    data = yf.download(tickers=symbols[asset], start=start_str, end=end_str)
+    # Baixar dados históricos
+    data = yf.download(tickers=symbols[asset], start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+    
     if data.empty:
-        print(f'Nenhum dado disponível para {asset}.')
-        return jsonify({'error': 'No data available for the asset'}), 400
-
-    # Garantir que a data esteja no índice dos dados
-    available_dates = data.index.strftime('%Y-%m-%d').tolist()
-    print(f"Datas disponíveis (últimas 5): {available_dates[-5:]}")  # Mostrar as últimas 5 datas
-    if date not in available_dates:
-        # Usar a data mais recente disponível
-        date = available_dates[-1]
-        print(f"Data solicitada não disponível. Usando data mais recente: {date}")
+        return jsonify({'error': 'Nenhum dado disponível para o asset e data fornecidos.'}), 400
 
     # Pré-processamento
     df = data.copy()
@@ -89,45 +67,53 @@ def predict():
     df['MACD'], df['MACD Signal'] = calculate_MACD(df['Close'])
     df.dropna(inplace=True)
 
-    print(f"Pré-processamento concluído. Dados disponíveis para {date}.")
+    # Garantir que a data selecionada está no índice
+    available_dates = df.index.strftime('%Y-%m-%d').tolist()
+    if date_str not in available_dates:
+        # Usar a data mais próxima anterior disponível
+        df_filtered = df[df.index <= date]
+        if df_filtered.empty:
+            return jsonify({'error': 'Nenhum dado disponível para a data selecionada.'}), 400
+        selected_row = df_filtered.iloc[-1]
+        selected_date = df_filtered.index[-1].strftime('%Y-%m-%d')
+    else:
+        selected_row = df.loc[date_str]
+        selected_date = date_str
 
-    # Selecionar a data específica
-    try:
-        X = df.loc[date, features]
-        print(f"Features selecionadas para {date}: {X.to_dict()}")
-    except KeyError:
-        print(f'Data não disponível após o processamento: {date}')
-        return jsonify({'error': 'Data not available after processing'}), 400
-
-    # Converter para DataFrame se necessário
-    if isinstance(X, pd.Series):
-        X = X.to_frame().T
+    # Preparar os dados para previsão
+    X = selected_row[features].values.reshape(1, -1)
 
     # Fazer a previsão
     model = models[asset]
     prediction = model.predict(X)[0]
-    print(f"Previsão: {prediction}")
 
     # Gerar sinal
-    current_price = X['Close'].values[0]
-    signal = 1 if prediction > current_price else -1
-    print(f"Preço atual: {current_price}, Sinal: {'Buy' if signal == 1 else 'Sell'}")
+    current_price = selected_row['Close']
+    signal = 'Buy' if prediction > current_price else 'Sell'
+
+    # Preparar dados para o gráfico (últimos 30 dias até a data selecionada)
+    graph_df = df.loc[:selected_date].tail(30)
+    graph_data = {
+        'dates': graph_df.index.strftime('%Y-%m-%d').tolist(),
+        'prices': graph_df['Close'].tolist(),
+        'asset': asset,
+    }
 
     response = {
         'asset': asset,
-        'date': date,
+        'date': selected_date,
         'prediction': prediction,
         'current_price': current_price,
-        'signal': 'Buy' if signal == 1 else 'Sell',
-        'features': X.to_dict(orient='records')[0],
-        'graphData': {
-            'dates': df.index.strftime('%Y-%m-%d').tolist(),
-            'prices': df['Close'].tolist(),
-            'asset': asset,
-        },
+        'signal': signal,
+        'features': selected_row[features].to_dict(),
+        'graphData': graph_data,
     }
 
     return jsonify(response)
 
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({'message': 'CryptoPredictor Backend está funcionando! Use o endpoint /predict.'}), 200
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0')

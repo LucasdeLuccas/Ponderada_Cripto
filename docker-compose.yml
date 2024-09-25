@@ -1,12 +1,10 @@
-# version: '3.8'
-
 services:
   backend:
     build:
       context: ./backend
     container_name: backend
     ports:
-      - "5001:5000"
+      - "5001:5000"  # Porta do host: Porta do contêiner
     volumes:
       - ./backend:/app
     environment:
@@ -19,7 +17,7 @@ services:
       context: ./frontend
     container_name: frontend
     ports:
-      - "3000:80"  # Mapeia a porta 80 do Nginx para a porta 3000 da máquina host
+      - "3000:80"  # Porta do host: Porta do Nginx no contêiner
     depends_on:
       - backend
     networks:
