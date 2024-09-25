@@ -13,13 +13,14 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import GraphDialog from '../components/GraphDialog';
-
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 const assets = ['Bitcoin', 'Ethereum', 'BNB', 'Solana', 'Dogecoin'];
 
 function HomePage() {
   const [asset, setAsset] = useState('Bitcoin');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(null); // Inicializado como null
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
@@ -39,8 +40,10 @@ function HomePage() {
     setLoading(true);
     setError('');
     try {
+      // Formatar a data para 'YYYY-MM-DD'
+      const formattedDate = date.toISOString().split('T')[0];
       const response = await axios.get('http://backend:5000/predict', {
-        params: { asset, date },
+        params: { asset, date: formattedDate },
       });
       setResult(response.data);
     } catch (error) {
@@ -59,29 +62,38 @@ function HomePage() {
       {/* Seção de Informação */}
       <Box textAlign="center" mb={4}>
         <Typography variant="h3" gutterBottom>
-          Bem-vindo ao DeLuccasCrypto
+          Bem-vindo ao DeLuccas Crypto
         </Typography>
         <Typography variant="h6" color="textSecondary">
-          Seu sistema de previsão para investimentos em criptoativos. 
+          Seu sistema de previsão para investimentos em criptoativos.
           Selecione uma data e aguarde...
         </Typography>
       </Box>
 
       {/* Animação ou Vídeo */}
       <Box display="flex" justifyContent="center" mb={4}>
-      <video
-        src="./assets/images/crypto_animation.mov"
-        controls
-        tyle={{ maxWidth: '200%', height: 'auto' }}
+        <video
+          src="./assets/images/crypto_animation.mov"
+          controls
+          style={{ maxWidth: '100%', height: 'auto' }} // Corrigido 'tyle' para 'style' e ajustado para 100%
         >
-      Seu navegador não suporta a tag de vídeo.
-      </video>
-        </Box>
-
+          Seu navegador não suporta a tag de vídeo.
+        </video>
+      </Box>
 
       {/* Formulário de Consulta */}
       <Paper elevation={3} sx={{ p: 4 }}>
-        <Box display="flex" flexDirection="column" alignItems="center">
+        {/* Container para os Inputs com largura fixa */}
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          sx={{
+            width: '100%',
+            maxWidth: '400px', // Definindo a largura máxima do container
+            margin: '0 auto', // Centralizando o container
+          }}
+        >
           {/* Seleção de Criptoativo */}
           <FormControl fullWidth margin="normal">
             <InputLabel id="asset-label">Criptoativo</InputLabel>
@@ -99,21 +111,18 @@ function HomePage() {
             </Select>
           </FormControl>
 
-          {/* Seleção de Data */}
-          <TextField
-            label="Data"
-            type="date"
-            InputLabelProps={{
-              shrink: true,
-            }}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            fullWidth
-            margin="normal"
-            inputProps={{
-              max: new Date().toISOString().split('T')[0], // Data máxima até hoje
-            }}
-          />
+          {/* Seleção de Data com DatePicker */}
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Data"
+              value={date}
+              onChange={(newValue) => {
+                setDate(newValue);
+              }}
+              renderInput={(params) => <TextField {...params} fullWidth margin="normal" />}
+              maxDate={new Date()} // Data máxima até hoje
+            />
+          </LocalizationProvider>
 
           {/* Botão Consultar */}
           <Button

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 import joblib
 import pandas as pd
 import yfinance as yf
@@ -6,11 +6,27 @@ from utils import calculate_RSI, calculate_MACD
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
+import logging
+from logging.handlers import RotatingFileHandler
+import time
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://frontend"}}) 
+CORS(app, resources={r"/*": {"origins": "*"}})  # Para desenvolvimento; restrinja em produção
 
+# Configurar Logging
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10*1024*1024, backupCount=5)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+))
+file_handler.setLevel(logging.INFO)
+app.logger.addHandler(file_handler)
 
+app.logger.setLevel(logging.INFO)
+app.logger.info('CryptoPredictor startup')
+
+# Definir os símbolos dos criptoativos
 symbols = {
     'BNB': 'BNB-USD',
     'Solana': 'SOL-USD',
@@ -26,8 +42,9 @@ for asset in symbols.keys():
     model_path = os.path.join(BASE_DIR, 'models', f'{asset}_model.pkl')
     try:
         models[asset] = joblib.load(model_path)
+        app.logger.info(f"Modelo para {asset} carregado com sucesso.")
     except FileNotFoundError:
-        print(f"Modelo para {asset} não encontrado em {model_path}.")
+        app.logger.error(f"Modelo para {asset} não encontrado em {model_path}.")
 
 # Definir as features utilizadas
 features = ['Close', 'MA10', 'MA50', 'MA100', 'Daily Return', 'Volatility', 'RSI', 'MACD']
@@ -37,13 +54,17 @@ def predict():
     asset = request.args.get('asset')
     date_str = request.args.get('date')  # Recebe a data no formato 'YYYY-MM-DD'
 
+    app.logger.info(f"Recebida requisição de previsão: asset={asset}, date={date_str}")
+
     if not asset or asset not in models:
+        app.logger.warning("Asset não suportado ou não fornecido.")
         return jsonify({'error': 'Asset não suportado ou não fornecido.'}), 400
 
     # Validar e converter a data
     try:
         date = datetime.strptime(date_str, '%Y-%m-%d')
     except (ValueError, TypeError):
+        app.logger.warning("Data inválida ou não fornecida.")
         return jsonify({'error': 'Data inválida ou não fornecida. Use o formato YYYY-MM-DD.'}), 400
 
     # Definir o período para baixar dados (500 dias antes da data selecionada)
@@ -51,9 +72,15 @@ def predict():
     end_date = date
 
     # Baixar dados históricos
-    data = yf.download(tickers=symbols[asset], start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
-    
+    try:
+        data = yf.download(tickers=symbols[asset], start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+        app.logger.info(f"Dados baixados para {asset} de {start_date.date()} até {end_date.date()}.")
+    except Exception as e:
+        app.logger.error(f"Erro ao baixar dados: {e}")
+        return jsonify({'error': 'Erro ao baixar dados históricos.'}), 500
+
     if data.empty:
+        app.logger.warning("Nenhum dado disponível para o asset e data fornecidos.")
         return jsonify({'error': 'Nenhum dado disponível para o asset e data fornecidos.'}), 400
 
     # Pré-processamento
@@ -73,6 +100,7 @@ def predict():
         # Usar a data mais próxima anterior disponível
         df_filtered = df[df.index <= date]
         if df_filtered.empty:
+            app.logger.warning("Nenhum dado disponível para a data selecionada.")
             return jsonify({'error': 'Nenhum dado disponível para a data selecionada.'}), 400
         selected_row = df_filtered.iloc[-1]
         selected_date = df_filtered.index[-1].strftime('%Y-%m-%d')
@@ -84,12 +112,18 @@ def predict():
     X = selected_row[features].values.reshape(1, -1)
 
     # Fazer a previsão
-    model = models[asset]
-    prediction = model.predict(X)[0]
+    try:
+        model = models[asset]
+        prediction = model.predict(X)[0]
+        app.logger.info(f"Previsão feita para {asset} em {selected_date}: {prediction}")
+    except Exception as e:
+        app.logger.error(f"Erro na previsão: {e}")
+        return jsonify({'error': 'Erro ao fazer a previsão.'}), 500
 
     # Gerar sinal
     current_price = selected_row['Close']
     signal = 'Buy' if prediction > current_price else 'Sell'
+    app.logger.info(f"Sinal gerado: {signal}")
 
     # Preparar dados para o gráfico (últimos 30 dias até a data selecionada)
     graph_df = df.loc[:selected_date].tail(30)
@@ -109,7 +143,22 @@ def predict():
         'graphData': graph_data,
     }
 
+    app.logger.info("Resposta de previsão enviada ao frontend.")
     return jsonify(response)
+
+@app.route('/logs', methods=['GET'])
+def stream_logs():
+    def generate():
+        with open('logs/app.log', 'r') as f:
+            # Move o cursor para o final do arquivo
+            f.seek(0, os.SEEK_END)
+            while True:
+                line = f.readline()
+                if not line:
+                    time.sleep(0.5)
+                    continue
+                yield f"data: {line}\n\n"
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 @app.route('/', methods=['GET'])
 def home():

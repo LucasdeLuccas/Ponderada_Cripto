@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   backend:
     build:
@@ -7,6 +9,7 @@ services:
       - "5001:5000"  # Porta do host: Porta do contêiner
     volumes:
       - ./backend:/app
+      - ./backend/logs:/app/logs  # Montar o diretório de logs para acesso externo, se necessário
     environment:
       - FLASK_ENV=development
     networks:
