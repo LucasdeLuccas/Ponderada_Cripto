@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+venv/
+
+# React
+node_modules/
+build/
+
+# Logs
+backend/logs/
+*.log
+
+# Docker
+docker/*.sql
+
+# Jupyter Notebook Checkpoints
+**/.ipynb_checkpoints
+
+# Others
+.DS_Store

@@ -1,32 +1,31 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import HomePage from './pages/HomePage';
-import LogsPage from './pages/LogsPage'; // Importação da nova página
-import { AppBar, Toolbar, Typography, Button } from '@mui/material';
+import { Navbar, Nav, Container } from 'react-bootstrap';
+import PredictionPage from './pages/PredictionPage';
+import LogsPage from './pages/LogsPage';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   return (
     <Router>
-      {/* Barra de Navegação */}
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            DeLuccasCrypto!
-          </Typography>
-          <Button color="inherit" component={Link} to="/">
-            Home
-          </Button>
-          <Button color="inherit" component={Link} to="/logs">
-            Logs
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Navbar bg="dark" variant="dark" expand="lg">
+        <Container>
+          <Navbar.Brand as={Link} to="/">Solana Predictor - By: De Luccas</Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="me-auto">
+              <Nav.Link as={Link} to="/logs">Logs</Nav.Link>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
 
-      {/* Rotas */}
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/logs" element={<LogsPage />} />
-      </Routes>
+      <Container className="mt-4">
+        <Routes>
+          <Route path="/" element={<PredictionPage />} />
+          <Route path="/logs" element={<LogsPage />} />
+        </Routes>
+      </Container>
     </Router>
   );
 }

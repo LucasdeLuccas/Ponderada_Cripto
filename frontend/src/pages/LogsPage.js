@@ -1,47 +1,66 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Container, Typography, Box, Paper } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Table, Container, Alert, Button } from 'react-bootstrap';
+
+/**
+
+ * @returns {Array}
+ */
+const getLogs = () => {
+  return JSON.parse(localStorage.getItem('solana_logs')) || [];
+};
+
+
+const clearLogs = () => {
+  localStorage.removeItem('solana_logs');
+};
 
 function LogsPage() {
+
   const [logs, setLogs] = useState([]);
-  const logEndRef = useRef(null);
 
   useEffect(() => {
-    const eventSource = new EventSource('http://localhost:5001/logs');
-
-    eventSource.onmessage = function(event) {
-      setLogs(prevLogs => [...prevLogs, event.data]);
-      scrollToBottom();
-    };
-
-    eventSource.onerror = function(err) {
-      console.error("EventSource failed:", err);
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
+ 
+    setLogs(getLogs());
   }, []);
 
-  const scrollToBottom = () => {
-    if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+
+  const handleClearLogs = () => {
+    if (window.confirm('Tem certeza que deseja limpar todos os logs?')) {
+      clearLogs();
+      setLogs([]);
     }
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Logs em Tempo Real
-      </Typography>
-      <Paper elevation={3} sx={{ p: 2, maxHeight: '70vh', overflow: 'auto', backgroundColor: '#1e1e1e', color: '#d4d4d4' }}>
-        <Box component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-          {logs.map((log, index) => (
-            <div key={index}>{log}</div>
-          ))}
-          <div ref={logEndRef} />
-        </Box>
-      </Paper>
+    <Container className="mt-5">
+      <h2>Logs de Previsões</h2>
+      <Button variant="danger" className="mb-3" onClick={handleClearLogs}>Limpar Logs</Button>
+      {logs.length === 0 ? (
+        <Alert variant="info">Nenhum log disponível.</Alert>
+      ) : (
+        <Table striped bordered hover>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Data Selecionada</th>
+              <th>Ação</th>
+              <th>Mensagem</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log, index) => (
+              <tr key={index}>
+                <td>{index + 1}</td>
+                <td>{log.date}</td>
+                <td>{log.action}</td>
+                <td>{log.message}</td>
+                <td>{new Date(log.timestamp).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
     </Container>
   );
 }
