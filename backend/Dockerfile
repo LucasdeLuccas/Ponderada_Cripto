@@ -1,33 +1,19 @@
-# Usar uma imagem base oficial do Python
-FROM python:3.10-slim
+FROM python:3.9-slim
 
-# Definir variáveis de ambiente
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Definir o diretório de trabalho no contêiner
+# Definir o diretório de trabalho
 WORKDIR /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar o arquivo de requisitos para o diretório de trabalho
+# Copiar o arquivo de dependências
 COPY requirements.txt .
 
-# Instalar dependências Python
-RUN pip install --upgrade pip
+# Instalar as dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar todo o código do backend para o diretório de trabalho
+# Copiar todo o código para o diretório de trabalho
 COPY . .
 
-# Expor a porta que o Flask usará
-EXPOSE 5000
+# Expor a porta que o backend irá rodar
+EXPOSE 8000
 
-# Definir a variável de ambiente para o Flask
-ENV FLASK_APP=app.py
-
-# Comando para iniciar o Flask
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Comando para iniciar o servidor FastAPI
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
