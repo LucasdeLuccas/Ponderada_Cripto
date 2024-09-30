@@ -92,9 +92,7 @@ Antes de iniciar, certifique-se de ter os seguintes softwares instalados em sua 
 
 4. **Acessar a Aplicação**
 
-   - **Frontend**: Abra o navegador e vá para [http://localhost](http://localhost).
-   - **Backend**: Acesse os logs e interações via [http://localhost:8000/docs](http://localhost:8000/docs).
-   - **Banco de Dados**: Utilize ferramentas como **pgAdmin** ou **DBeaver** para gerenciar o banco de dados PostgreSQL em [http://localhost:5432](http://localhost:5432).
+   -Abra o navegador e vá para [http://localhost](http://localhost).
 
 5. **Explicação dos Comandos:**
 
