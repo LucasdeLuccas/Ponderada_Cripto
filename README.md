@@ -2,6 +2,22 @@
 
 ![Solana Logo](frontend/public/images/solana.png)
 
+
+## ❌ Por Que Não Utilizamos DataLake?
+
+Optamos por não utilizar uma solução de DataLake neste projeto devido à complexidade adicional e ao escopo atual da aplicação. Nosso foco principal é fornecer previsões consistentes e armazenar logs de forma eficiente utilizando o PostgreSQL, que atende perfeitamente às necessidades de persistência de dados do projeto. A implementação de um DataLake exigiria uma arquitetura mais robusta e especializada para gerenciamento e análise de grandes volumes de dados, o que, no momento, não se alinha com os objetivos imediatos da aplicação.
+
+## 🐳 Como Utilizamos Docker
+
+O **Docker** foi essencial para garantir a consistência e a facilidade de implantação da aplicação em diferentes ambientes. Utilizamos o **Docker Compose** para orquestrar múltiplos containers, cada um responsável por um serviço específico:
+
+- **solana-backend**: Serviço backend desenvolvido com FastAPI, responsável pela lógica de previsão e interação com o banco de dados.
+- **solana-db**: Banco de dados PostgreSQL para armazenar logs e dados relevantes.
+- **solana-frontend**: Interface frontend desenvolvida com React, fornecendo uma experiência de usuário intuitiva.
+
+Essa abordagem permite que todas as dependências e configurações sejam encapsuladas nos containers, facilitando a escalabilidade e manutenção do sistema.
+
+
 ## 📈 Visão Geral
 
 O **Solana Predictor** é uma aplicação web interativa que permite aos usuários obter recomendações sobre quando **Comprar**, **Vender** ou **Manter** suas posições em Solana (SOL). Através de uma interface, os usuários podem selecionar uma data e receber uma recomendação personalizada baseada em uma lógica determinística, garantindo consistência nas previsões para a mesma data.
@@ -22,19 +38,6 @@ O **Solana Predictor** é uma aplicação web interativa que permite aos usuári
 - **Orquestração de Containers**: Docker, Docker Compose
 - **API Externa**: CoinGecko (para obtenção de dados históricos de Solana)
 
-## ❌ Por Que Não Utilizamos DataLake?
-
-Optamos por não utilizar uma solução de DataLake neste projeto devido à complexidade adicional e ao escopo atual da aplicação. Nosso foco principal é fornecer previsões consistentes e armazenar logs de forma eficiente utilizando o PostgreSQL, que atende perfeitamente às necessidades de persistência de dados do projeto. A implementação de um DataLake exigiria uma arquitetura mais robusta e especializada para gerenciamento e análise de grandes volumes de dados, o que, no momento, não se alinha com os objetivos imediatos da aplicação.
-
-## 🐳 Como Utilizamos Docker
-
-O **Docker** foi essencial para garantir a consistência e a facilidade de implantação da aplicação em diferentes ambientes. Utilizamos o **Docker Compose** para orquestrar múltiplos containers, cada um responsável por um serviço específico:
-
-- **solana-backend**: Serviço backend desenvolvido com FastAPI, responsável pela lógica de previsão e interação com o banco de dados.
-- **solana-db**: Banco de dados PostgreSQL para armazenar logs e dados relevantes.
-- **solana-frontend**: Interface frontend desenvolvida com React, fornecendo uma experiência de usuário intuitiva.
-
-Essa abordagem permite que todas as dependências e configurações sejam encapsuladas nos containers, facilitando a escalabilidade e manutenção do sistema.
 
 ## 📚 Guia de Instalação
 
